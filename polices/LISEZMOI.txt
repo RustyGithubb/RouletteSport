@@ -1,0 +1,3 @@
+Depose ici tes polices (.ttf / .otf / .ttc).
+Dans l app : Reglages > Polices > Actualiser la liste.
+Elles apparaissent avec la mention (perso).

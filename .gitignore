@@ -1,0 +1,14 @@
+# Compilation Rust
+/target
+
+# Polices perso : licence "personal use", a ne pas publier
+/polices/*
+!/polices/LISEZMOI.txt
+
+# Fichiers systeme / editeurs
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+*.swp
