@@ -973,7 +973,13 @@ impl RouletteApp {
             ui.add_space(((ui.available_width() - w) / 2.0).max(0.0));
             if ui.add_sized([190.0, 26.0], egui::Button::new("Ouvrir le dossier")).clicked() {
                 let _ = std::fs::create_dir_all(&dir);
-                let opener = if cfg!(windows) { "explorer" } else { "xdg-open" };
+                let opener = if cfg!(windows) {
+                    "explorer"
+                } else if cfg!(target_os = "macos") {
+                    "open"
+                } else {
+                    "xdg-open"
+                };
                 let _ = std::process::Command::new(opener).arg(&dir).spawn();
             }
             if ui.add_sized([190.0, 26.0], egui::Button::new("Actualiser la liste")).clicked() {

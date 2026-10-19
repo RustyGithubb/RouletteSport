@@ -11,6 +11,17 @@ Appli Windows (Rust + egui) qui tire 3 exercices par séance, façon loto.
    ```
    L'exécutable est ensuite dans `target\release\roulette-sport.exe`.
 
+## macOS
+
+Chaque envoi sur `main` compile automatiquement l'app sur GitHub (onglet **Actions** › dernière exécution « Compilation » › **Artifacts**) :
+
+- `RouletteSport-macOS` : `Roulette Sport.app` universelle (Apple Silicon + Intel, macOS 11+).
+- `RouletteSport-Windows` : `roulette-sport.exe`.
+
+L'app n'est pas signée par Apple : au premier lancement, clic droit sur l'app › **Ouvrir** › **Ouvrir**. Si macOS dit qu'elle est « endommagée », dans le Terminal : `xattr -dr com.apple.quarantine "/Applications/Roulette Sport.app"`.
+
+Sur Mac, les données sont dans `~/Library/Application Support/RouletteSport/` et les polices perso dans le sous-dossier `polices` (ou un dossier `polices` posé à côté de l'app).
+
 ## Règles implémentées
 
 - **Navigation** : en-tête flottant au-dessus de la page — faux logo (lettre dans une capsule) à gauche, « AUJOURD'HUI » et « RÉSUMÉ ET ORGANISATION » en deux pilules centrées (le fond de la pilule active glisse de l'une à l'autre), Réglages en bouton rond à droite (engrenage). La page occupe toute la fenêtre et défile sous l'en-tête, qui s'estompe vers le bas ; le contenu commence sous l'en-tête pour ne jamais se chevaucher. La date du jour est sous le titre de la page principale.

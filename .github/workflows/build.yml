@@ -1,0 +1,66 @@
+name: Compilation
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  macos:
+    name: macOS (Apple Silicon + Intel)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - name: Compiler (ARM et Intel)
+        run: |
+          cargo build --release --locked --target aarch64-apple-darwin
+          cargo build --release --locked --target x86_64-apple-darwin
+      - name: Créer « Roulette Sport.app » (universelle)
+        run: |
+          APP="Roulette Sport.app"
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          lipo -create -output "$APP/Contents/MacOS/roulette-sport" \
+            target/aarch64-apple-darwin/release/roulette-sport \
+            target/x86_64-apple-darwin/release/roulette-sport
+          cat > "$APP/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>Roulette Sport</string>
+            <key>CFBundleDisplayName</key><string>Roulette Sport</string>
+            <key>CFBundleIdentifier</key><string>com.rustygithubb.roulettesport</string>
+            <key>CFBundleExecutable</key><string>roulette-sport</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleVersion</key><string>0.26</string>
+            <key>CFBundleShortVersionString</key><string>0.26</string>
+            <key>LSMinimumSystemVersion</key><string>11.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          # Signature ad hoc (obligatoire pour lancer sur Apple Silicon)
+          codesign --force --deep --sign - "$APP"
+          mkdir -p dist
+          cp -R "$APP" dist/
+          cp polices/LISEZMOI.txt dist/
+          ditto -c -k --keepParent "dist" RouletteSport-macOS.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RouletteSport-macOS
+          path: RouletteSport-macOS.zip
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release --locked
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RouletteSport-Windows
+          path: target/release/roulette-sport.exe
