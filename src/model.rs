@@ -106,6 +106,10 @@ pub struct ExerciseStats {
     pub last: Option<(NaiveDate, ExerciseLog)>,
     /// Séances les plus récentes d'abord.
     pub recent: Vec<(NaiveDate, ExerciseLog)>,
+    /// Moyenne de répétitions par série (toutes séances).
+    pub avg_reps: Option<f32>,
+    /// Moyenne de reps par série de chaque séance, de la plus ancienne à la plus récente (12 dernières).
+    pub avg_history: Vec<(NaiveDate, f32)>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -625,6 +629,14 @@ impl Data {
             }
         }
         st.bodyweight_only = any_bw && !any_weight;
+        st.avg_reps = (st.total_sets > 0).then(|| st.total_reps as f32 / st.total_sets as f32);
+        st.avg_history = logs
+            .iter()
+            .filter(|(_, l)| !l.sets.is_empty())
+            .take(12)
+            .map(|(d, l)| (*d, l.sets.iter().map(|s| s.reps).sum::<u32>() as f32 / l.sets.len() as f32))
+            .collect();
+        st.avg_history.reverse();
         st.last = logs.first().cloned();
         st.recent = logs.into_iter().take(5).collect();
         st
@@ -834,6 +846,9 @@ mod tests {
         assert_eq!(st.total_reps, 18);
         assert_eq!(st.total_sets, 2);
         assert_eq!(st.sessions, 1);
+        assert_eq!(st.avg_reps, Some(9.0));
+        assert_eq!(st.avg_history.len(), 1);
+        assert_eq!(st.avg_history[0].1, 9.0);
         assert_eq!(d.last_log("Squats"), Some(&log));
         // poids du corps
         let j = d.record(mon).unwrap().exercises.iter().position(|e| e == "Pompes").unwrap();
