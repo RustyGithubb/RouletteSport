@@ -1,4 +1,4 @@
-# Roulette Sport — v0.26
+# Roulette Sport — v0.27
 
 Appli Windows (Rust + egui) qui tire 3 exercices par séance, façon loto.
 
@@ -24,6 +24,7 @@ Sur Mac, les données sont dans `~/Library/Application Support/RouletteSport/` e
 
 ## Règles implémentées
 
+- **Navigation verticale (option)** : Réglages › Développement · Dimensions › Navigation « Verticale à gauche » : fine colonne à gauche avec le logo en haut, les onglets en pilules verticales (texte tourné de 90°) et le bouton Réglages en bas. La page se décale d'autant.
 - **Navigation** : en-tête flottant au-dessus de la page — faux logo (lettre dans une capsule) à gauche, « AUJOURD'HUI » et « RÉSUMÉ ET ORGANISATION » en deux pilules centrées (le fond de la pilule active glisse de l'une à l'autre), Réglages en bouton rond à droite (engrenage). La page occupe toute la fenêtre et défile sous l'en-tête, qui s'estompe vers le bas ; le contenu commence sous l'en-tête pour ne jamais se chevaucher. La date du jour est sous le titre de la page principale.
 
 - **Filtre VHS** : bruit animé façon cassette sur toute la fenêtre — grain qui scintille, lignes de balayage, bande de tracking qui descend, parasites horizontaux. Dessiné au-dessus de tout sans gêner les clics. Réglable dans Réglages › Développement · Filtre VHS (activer, intensité de chaque effet, vitesse ; 0 = figé).

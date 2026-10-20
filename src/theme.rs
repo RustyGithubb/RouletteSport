@@ -567,11 +567,15 @@ pub struct Metrics {
     pub header_h: f32,
     /// Épaisseur des bordures des panneaux, en points (pour un trait de base de 1).
     pub border: f32,
+    /// Onglets et réglages en colonne verticale à gauche (au lieu de l'en-tête en haut).
+    pub vertical_nav: bool,
+    /// (Ancien réglage, ignoré : la colonne s'ajuste à la taille des boutons.)
+    pub nav_width: f32
 }
 
 impl Default for Metrics {
     fn default() -> Self {
-        Self { header_h: 89.0, border: 0.75 }
+        Self { header_h: 89.0, border: 0.75, vertical_nav: false, nav_width: 250.0 }
     }
 }
 
@@ -588,6 +592,36 @@ fn metrics() -> Metrics {
 /// Hauteur de l'en-tête.
 pub fn header_h() -> f32 {
     metrics().header_h
+}
+
+/// Navigation verticale à gauche ?
+pub fn vertical_nav() -> bool {
+    metrics().vertical_nav
+}
+
+/// Largeur de la colonne de navigation (0 si navigation en haut).
+pub fn nav_left() -> f32 {
+    let m = metrics();
+    if m.vertical_nav {
+        // Colonne fine : boutons de 34 pt de large (à l'échelle) + marges.
+        48.0 * nav_scale() + 40.0
+    } else {
+        0.0
+    }
+}
+
+/// Espace à laisser en haut de la page (sous l'en-tête, ou presque rien en mode vertical).
+pub fn content_top() -> f32 {
+    if vertical_nav() {
+        18.0
+    } else {
+        header_h() + 10.0
+    }
+}
+
+/// Échelle des boutons de navigation (suit la hauteur de l'en-tête réglée).
+pub fn nav_scale() -> f32 {
+    header_h() / 74.0
 }
 
 /// Épaisseur d'une bordure de panneau (`base` = épaisseur d'origine).

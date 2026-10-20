@@ -252,7 +252,7 @@ impl eframe::App for RouletteApp {
 
         if self.tab == Tab::Today && self.data.day_kind(today) == DayKind::Training {
             egui::TopBottomPanel::bottom("actions")
-                .frame(Frame::none().fill(Color32::TRANSPARENT).inner_margin(Margin { left: 24.0, right: 24.0, top: 12.0, bottom: 20.0 }))
+                .frame(Frame::none().fill(Color32::TRANSPARENT).inner_margin(Margin { left: 24.0 + theme::nav_left(), right: 24.0, top: 12.0, bottom: 20.0 }))
                 .show_separator_line(false)
                 .show(ctx, |ui| self.ui_action_bar(ui, today));
         }
@@ -260,7 +260,7 @@ impl eframe::App for RouletteApp {
         let shape_count = |ctx: &egui::Context| ctx.graphics(|g| g.get(egui::LayerId::background()).map_or(0, |l| l.next_idx().0));
         let bg_start = shape_count(ctx);
         let central = egui::CentralPanel::default()
-            .frame(Frame::none().fill(Color32::TRANSPARENT).inner_margin(Margin { left: 24.0, right: 24.0, top: 0.0, bottom: 16.0 }))
+            .frame(Frame::none().fill(Color32::TRANSPARENT).inner_margin(Margin { left: 24.0 + theme::nav_left(), right: 24.0, top: 0.0, bottom: 16.0 }))
             .show(ctx, |ui| {
                 // Transition d'onglet : fondu + léger glissement, en ease-in-out.
                 let since = self.tab_changed.map_or(f32::MAX, |t| t.elapsed().as_secs_f32());
@@ -272,7 +272,7 @@ impl eframe::App for RouletteApp {
                 egui::ScrollArea::vertical().id_salt(self.tab as u8).auto_shrink([false; 2]).show(ui, |ui| {
                     // La page occupe toute la fenêtre et défile sous l'en-tête :
                     // on la commence juste sous l'en-tête pour que rien ne se chevauche.
-                    ui.add_space(theme::header_h() + 10.0 + 14.0 * (1.0 - k));
+                    ui.add_space(theme::content_top() + 14.0 * (1.0 - k));
                     if let Some(msg) = &self.message {
                         ui.label(RichText::new(msg).color(theme::fg()).strong());
                         ui.add_space(8.0);
@@ -1070,8 +1070,14 @@ impl RouletteApp {
         center_block(ui, "dev_metrics", |ui| {
             egui::Grid::new("dev_metrics").num_columns(2).spacing([18.0, 10.0]).show(ui, |ui| {
                 ui.spacing_mut().slider_width = 220.0;
-                ui.label("Hauteur de l'en-tête");
+                ui.label("Taille de la navigation");
                 m_changed |= ui.add(egui::Slider::new(&mut m.header_h, 52.0..=130.0).custom_formatter(|v, _| format!("{v:.0} px"))).changed();
+                ui.end_row();
+                ui.label("Navigation");
+                ui.horizontal(|ui| {
+                    m_changed |= ui.radio_value(&mut m.vertical_nav, false, "En haut").changed();
+                    m_changed |= ui.radio_value(&mut m.vertical_nav, true, "Verticale à gauche").changed();
+                });
                 ui.end_row();
                 ui.label("Épaisseur des bordures");
                 m_changed |= ui.add(egui::Slider::new(&mut m.border, 0.0..=4.0).step_by(0.25).custom_formatter(|v, _| format!("{v:.2} px"))).changed();
@@ -1308,25 +1314,35 @@ impl RouletteApp {
     /// réglages en bouton rond à droite. Fond en dégradé : la page s'estompe en passant dessous.
     fn ui_header(&mut self, ctx: &egui::Context) {
         let screen = ctx.screen_rect();
-        let band = Rect::from_min_size(screen.min, Vec2::new(screen.width(), theme::header_h()));
-        // Tout l'en-tête suit sa hauteur réglable.
-        let s = band.height() / HEADER_REF;
+        let vertical = theme::vertical_nav();
+        // Bande de navigation : en haut, ou colonne à gauche.
+        let band = if vertical {
+            Rect::from_min_size(screen.min, Vec2::new(theme::nav_left(), screen.height()))
+        } else {
+            Rect::from_min_size(screen.min, Vec2::new(screen.width(), theme::header_h()))
+        };
+        // Les boutons suivent la taille de navigation réglée.
+        let s = theme::nav_scale();
         let mut clicked = None;
         egui::Area::new(egui::Id::new("header")).order(egui::Order::Foreground).fixed_pos(band.min).show(ctx, |ui| {
             let (_, _) = ui.allocate_exact_size(band.size(), egui::Sense::hover());
             let p = ui.painter().clone();
 
-            // Fond : opaque en haut, puis fondu vers le bas.
+            // Fond : opaque côté bord, puis fondu vers la page.
             // (couleurs prises sur le fond, dégradé compris)
             let mut m = egui::Mesh::default();
             let stops = [(0.0, 1.0), (0.62, 0.94), (1.0, 0.0)];
             let cols = 16u32;
             for (t, a) in stops.iter() {
-                let y = band.top() + band.height() * t;
                 for i in 0..=cols {
                     let u = i as f32 / cols as f32;
-                    let c = theme::bg_at(u, (y - screen.top()) / screen.height());
-                    m.colored_vertex(Pos2::new(band.left() + u * band.width(), y), c.gamma_multiply(*a));
+                    let pos = if vertical {
+                        Pos2::new(band.left() + band.width() * t, band.top() + u * band.height())
+                    } else {
+                        Pos2::new(band.left() + u * band.width(), band.top() + band.height() * t)
+                    };
+                    let c = theme::bg_at((pos.x - screen.left()) / screen.width(), (pos.y - screen.top()) / screen.height());
+                    m.colored_vertex(pos, c.gamma_multiply(*a));
                 }
             }
             for row in 0..(stops.len() as u32 - 1) {
@@ -1339,33 +1355,46 @@ impl RouletteApp {
             }
             p.add(egui::Shape::mesh(m));
 
-            let cy = band.top() + 34.0 * s;
             let h = 34.0 * s;
+            let cy = band.top() + 34.0 * s;
 
             // Faux logo : une lettre dans une capsule
-            let logo = Rect::from_center_size(Pos2::new(band.left() + 24.0 + 24.0 * s, cy), Vec2::new(48.0 * s, h));
+            let logo_x = if vertical { band.center().x } else { band.left() + 24.0 + 24.0 * s };
+            let logo = Rect::from_center_size(Pos2::new(logo_x, cy), Vec2::new(48.0 * s, h));
             theme::panel(&p, logo, h / 2.0, theme::fg());
             p.text(logo.center() + Vec2::new(0.0, 1.0), Align2::CENTER_CENTER, "R", theme::title(21.0 * s), theme::bg());
 
-            // Onglets en pilules, centrés
+            // Onglets en pilules : centrés en haut, ou empilés dans la colonne
             let tabs = [(Tab::Today, "AUJOURD'HUI"), (Tab::Week, "RÉSUMÉ ET ORGANISATION")];
             let font = FontId::proportional(13.0 * s);
             let gap = 8.0 * s;
             let galleys: Vec<_> = tabs.iter().map(|(_, l)| p.layout_no_wrap(l.to_string(), font.clone(), theme::fg())).collect();
-            let widths: Vec<f32> = galleys.iter().map(|g| g.size().x + 44.0 * s).collect();
-            let total = widths.iter().sum::<f32>() + gap;
-            let mut x = band.center().x - total / 2.0;
             let mut rects = Vec::new();
-            for w in &widths {
-                rects.push(Rect::from_min_size(Pos2::new(x, cy - h / 2.0), Vec2::new(*w, h)));
-                x += w + gap;
+            if vertical {
+                // Pilules verticales, texte tourné de 90° (lecture de bas en haut).
+                let mut y = cy + h / 2.0 + 24.0 * s;
+                for g in &galleys {
+                    let len = g.size().x + 44.0 * s;
+                    rects.push(Rect::from_min_size(Pos2::new(band.center().x - h / 2.0, y), Vec2::new(h, len)));
+                    y += len + gap;
+                }
+            } else {
+                let widths: Vec<f32> = galleys.iter().map(|g| g.size().x + 44.0 * s).collect();
+                let total = widths.iter().sum::<f32>() + gap;
+                let mut x = band.center().x - total / 2.0;
+                for w in &widths {
+                    rects.push(Rect::from_min_size(Pos2::new(x, cy - h / 2.0), Vec2::new(*w, h)));
+                    x += w + gap;
+                }
             }
             let sel = tabs.iter().position(|(t, _)| *t == self.tab);
             let target = rects[sel.unwrap_or(0)];
             let px = anim::smooth(ctx, egui::Id::new("pill_x"), target.left(), 0.38);
+            let py = anim::smooth(ctx, egui::Id::new("pill_y"), target.top(), 0.38);
             let pw = anim::smooth(ctx, egui::Id::new("pill_w"), target.width(), 0.38);
             let pa = anim::smooth(ctx, egui::Id::new("pill_a"), if sel.is_some() { 1.0 } else { 0.0 }, 0.3);
-            let pill = Rect::from_min_size(Pos2::new(px, cy - h / 2.0), Vec2::new(pw, h));
+            let ph = anim::smooth(ctx, egui::Id::new("pill_h"), target.height(), 0.38);
+            let pill = Rect::from_min_size(Pos2::new(px, py), Vec2::new(pw, ph));
             for (i, ((tab, _), r)) in tabs.iter().zip(&rects).enumerate() {
                 let resp = ui.interact(*r, egui::Id::new(("tab_pill", i)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                 let fill = if resp.hovered() { theme::gray(34) } else { theme::surface() };
@@ -1379,16 +1408,34 @@ impl RouletteApp {
                 theme::panel(&p, pill, h / 2.0, theme::fg().gamma_multiply(pa));
             }
             for (g, r) in galleys.into_iter().zip(&rects) {
-                let pos = r.center() - g.size() / 2.0;
-                p.with_clip_rect(*r).galley(pos, g.clone(), theme::fg());
                 let over = r.intersect(pill);
-                if pa > 0.5 && over.width() > 0.0 {
-                    p.with_clip_rect(over).galley_with_override_text_color(pos, g, theme::bg());
+                let active = pa > 0.5 && over.width() > 0.0 && over.height() > 0.0;
+                if vertical {
+                    // Rotation de -90° autour du coin du texte : il monte depuis `pos`.
+                    let sz = g.size();
+                    let pos = Pos2::new(r.center().x - sz.y / 2.0, r.center().y + sz.x / 2.0);
+                    let shape = |c: Color32| {
+                        egui::Shape::Text(egui::epaint::TextShape::new(pos, g.clone(), theme::fg()).with_override_text_color(c).with_angle(-std::f32::consts::FRAC_PI_2))
+                    };
+                    p.with_clip_rect(*r).add(shape(theme::fg()));
+                    if active {
+                        p.with_clip_rect(over).add(shape(theme::bg()));
+                    }
+                } else {
+                    let pos = r.center() - g.size() / 2.0;
+                    p.with_clip_rect(*r).galley(pos, g.clone(), theme::fg());
+                    if active {
+                        p.with_clip_rect(over).galley_with_override_text_color(pos, g, theme::bg());
+                    }
                 }
             }
 
-            // Réglages : bouton rond à droite, icône d'engrenage dessinée
-            let c = Pos2::new(band.right() - 24.0 - h / 2.0, cy);
+            // Réglages : bouton rond (à droite en haut, ou en bas de la colonne), engrenage dessiné
+            let c = if vertical {
+                Pos2::new(band.center().x, band.bottom() - 24.0 - h / 2.0)
+            } else {
+                Pos2::new(band.right() - 24.0 - h / 2.0, cy)
+            };
             let r_btn = Rect::from_center_size(c, Vec2::splat(h + 4.0 * s));
             let resp = ui.interact(r_btn, egui::Id::new("settings_btn"), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text("Réglages");
             let on = self.tab == Tab::Settings;
@@ -1732,25 +1779,29 @@ impl RouletteApp {
     /// « à faire » / « fait » et un panneau, dessinés avec les réglages en cours.
     fn ui_preview(&mut self, ctx: &egui::Context) {
         let screen = ctx.screen_rect();
-        let top = screen.top() + theme::header_h() + 12.0;
-        let x = screen.right() - PREVIEW_W - 20.0;
-        if screen.width() < 560.0 + PREVIEW_W + 32.0 + 48.0 {
+        // Navigation verticale : l'aperçu se range dans la colonne de gauche, sous les onglets.
+        if screen.width() - theme::nav_left() < 560.0 + PREVIEW_W + 32.0 + 48.0 {
+            return;
+        }
+        let top = screen.top() + if theme::vertical_nav() { 16.0 } else { theme::header_h() + 12.0 };
+        let (x, pw, bottom_room) = (screen.right() - PREVIEW_W - 20.0, PREVIEW_W, 12.0);
+        if pw < 120.0 {
             return;
         }
         if !self.preview_on {
-            egui::Area::new(egui::Id::new("preview_btn")).order(egui::Order::Foreground).fixed_pos(Pos2::new(screen.right() - 120.0, top)).show(ctx, |ui| {
+            egui::Area::new(egui::Id::new("preview_btn")).order(egui::Order::Foreground).fixed_pos(Pos2::new(x + pw - 100.0, top)).show(ctx, |ui| {
                 if ui.add_sized([100.0, 26.0], egui::Button::new("Aperçu")).clicked() {
                     self.preview_on = true;
                 }
             });
             return;
         }
-        let side = PREVIEW_W - 40.0;
+        let side = pw - 40.0;
         let ts = theme::todo_style();
         let rs = theme::reel_style();
         let btn_h = side * ts.height.clamp(0.1, 0.8);
         let h = 40.0 + side + ts.gap + btn_h + 10.0 + btn_h + 14.0 + 44.0 + 20.0;
-        let frame = Rect::from_min_size(Pos2::new(x, top), Vec2::new(PREVIEW_W, h.min(screen.bottom() - top - 12.0)));
+        let frame = Rect::from_min_size(Pos2::new(x, top), Vec2::new(pw, h.min(screen.bottom() - top - bottom_room)));
         egui::Area::new(egui::Id::new("preview")).order(egui::Order::Foreground).fixed_pos(frame.min).show(ctx, |ui| {
             let (frame, _) = ui.allocate_exact_size(frame.size(), egui::Sense::hover());
             let p = ui.painter().with_clip_rect(frame.expand(4.0));
